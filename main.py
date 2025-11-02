@@ -25,12 +25,13 @@ app.add_middleware(
 )
 
 # ============================================================
-# 🔑 Gemini Setup
+# 🔑 Gemini Setup (✅ Corrected)
 # ============================================================
-
-os.environ["GOOGLE_API_KEY"] = "AIzaSyCyTKqCfw7BeVvPRvYRLLtEZUhlpF-eC6A"
+os.environ["GOOGLE_API_KEY"] = "YOUR_API_KEY_HERE"
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
+
+# Load the Gemini model (use gemini-1.5-flash or similar)
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 # ============================================================
 # 🧠 Knowledge Base
@@ -123,10 +124,12 @@ def ask_gemini_context(user_message: str):
         )
 
     prompt = f"{SYSTEM_PROMPT}\n{history_text}\nContext: {json.dumps(context)}\nUser: {user_message}\nBot:"
-    response = client.models.generate_content(model="gemini-2.5-flash", contents=[prompt])
+
+    # ✅ Use the correct model call
+    response = model.generate_content(prompt)
 
     try:
-        text = response.candidates[0].content.parts[0].text.strip()
+        text = response.text.strip()
     except Exception:
         text = str(response)
 
@@ -154,8 +157,9 @@ async def chat(req: ChatRequest):
     return {"reply": reply}
 
 # ============================================================
-# 🏁 Run
+# 🏁 Run (✅ Render-compatible)
 # ============================================================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
