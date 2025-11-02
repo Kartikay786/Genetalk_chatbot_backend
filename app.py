@@ -11,7 +11,7 @@ from collections import deque
 app = Flask(__name__)
 
 # 🔑 Setup Gemini
-# os.environ["GOOGLE_API_KEY"] = "AIzaSyCyTKqCfw7BeVvPRvYRLLtEZUhlpF-eC6A"
+os.environ["GOOGLE_API_KEY"] = "AIzaSyCyTKqCfw7BeVvPRvYRLLtEZUhlpF-eC6A"
 api_key = os.environ["GOOGLE_API_KEY"]
 client = genai.Client(api_key=api_key)
 
