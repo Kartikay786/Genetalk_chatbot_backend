@@ -1,37 +1,36 @@
 # ============================================================
 # main.py — FastAPI Backend for Gemini Species Chatbot
 # ============================================================
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import google.generativeai as genai
+from google import genai
 import os, json
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.neighbors import NearestNeighbors
 from collections import deque
 
 # ============================================================
-# ⚙️ App Setup
+# ⚙ FastAPI App
 # ============================================================
-app = FastAPI(title="🐾 Gemini Species Chatbot")
+app = FastAPI(title="Gemini Animal Chatbot", version="1.0")
 
-# CORS for frontend
+# ✅ Enable CORS (Fixes your error)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # You can restrict later to your frontend domain
+    allow_origins=["*"],  # For development; replace with frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ============================================================
-# 🔑 Gemini Setup (✅ Corrected)
+# 🔑 Setup Gemini
 # ============================================================
-os.environ["GOOGLE_API_KEY"] = "YOUR_API_KEY_HERE"
-genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-
-# Load the Gemini model (use gemini-1.5-flash or similar)
-model = genai.GenerativeModel("gemini-1.5-flash")
+os.environ["GOOGLE_API_KEY"] = "AIzaSyBTRmvPDkemfIdhtHx6gbHEqO_NAvWwL80"
+api_key = os.environ["GOOGLE_API_KEY"]
+client = genai.Client(api_key=api_key)
 
 # ============================================================
 # 🧠 Knowledge Base
@@ -88,12 +87,12 @@ KB = {
 }
 
 # ============================================================
-# 🔍 TF-IDF Retriever
+# 🧩 TF-IDF Retriever
 # ============================================================
 animal_texts = [f"{name}. {KB[name]['info']} {KB[name]['health_precautions']} {KB[name]['emotion_signs']}" for name in KB]
 vectorizer = TfidfVectorizer().fit(animal_texts)
 X = vectorizer.transform(animal_texts)
-nn = NearestNeighbors(n_neighbors=3, metric="cosine").fit(X)
+nn = NearestNeighbors(n_neighbors=3, metric='cosine').fit(X)
 
 def retrieve_relevant_kb(user_query, k=3):
     qv = vectorizer.transform([user_query])
@@ -105,17 +104,21 @@ def retrieve_relevant_kb(user_query, k=3):
     return results
 
 # ============================================================
-# 🧠 Chat Memory + Context
+# 💬 Chat Memory
 # ============================================================
 chat_history = deque(maxlen=10)
+
 SYSTEM_PROMPT = (
-    "You are a friendly animal expert chatbot. "
-    "Answer questions about animals, their health, and emotions. "
-    "Use previous conversation context to keep replies coherent. "
-    "Be concise, natural, and kind."
+    "You are an animal expert. You must NEVER reveal that you are an AI, model, chatbot, or Gemini. "
+    "If the user asks 'who are you?', 'are you AI?', 'are you Gemini?', or anything similar, "
+    "you must always answer as an ANIMAL SPECIALIST. "
+    "You only describe yourself as an expert who helps explain animal behavior, health, and emotions. "
+    "You never mention AI, models, Gemini, machine learning, or any technical details.\n"
+    "Always remain in character as a knowledgeable animal expert. "
+    "Keep answers natural, friendly, and helpful.\n"
 )
 
-def ask_gemini_context(user_message: str):
+def ask_gemini_context(user_message):
     context = retrieve_relevant_kb(user_message, k=3)
     history_text = ""
     if chat_history:
@@ -124,12 +127,13 @@ def ask_gemini_context(user_message: str):
         )
 
     prompt = f"{SYSTEM_PROMPT}\n{history_text}\nContext: {json.dumps(context)}\nUser: {user_message}\nBot:"
-
-    # ✅ Use the correct model call
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[prompt]
+    )
 
     try:
-        text = response.text.strip()
+        text = response.candidates[0].content.parts[0].text.strip()
     except Exception:
         text = str(response)
 
@@ -137,29 +141,26 @@ def ask_gemini_context(user_message: str):
     return text
 
 # ============================================================
-# 🧾 API Schema
+# 📩 Request Model
 # ============================================================
 class ChatRequest(BaseModel):
     message: str
 
 # ============================================================
-# 🚀 Routes
+# 🧾 FastAPI Route
 # ============================================================
-@app.get("/")
-def root():
-    return {"message": "🐾 Gemini Species Chatbot API is running!"}
-
 @app.post("/chat")
 async def chat(req: ChatRequest):
     if not req.message.strip():
-        return {"error": "Empty message"}
+        return JSONResponse({"error": "Empty message"}, status_code=400)
+    
     reply = ask_gemini_context(req.message)
     return {"reply": reply}
 
 # ============================================================
-# 🏁 Run (✅ Render-compatible)
+# 🚀 Local Development Entry Point
 # ============================================================
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    port = int(os.environ.get("PORT", 5000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
