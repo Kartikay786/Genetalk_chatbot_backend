@@ -5,7 +5,8 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from google import genai
+# from google import genai
+import google.generativeai as genai
 import os, json
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.neighbors import NearestNeighbors
@@ -32,7 +33,10 @@ app.add_middleware(
 api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
     raise RuntimeError("GOOGLE_API_KEY not set")
-client = genai.Client(api_key=api_key)
+
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel("gemini-1.5-flash")
+# client = genai.Client(api_key=api_key)
 
 # ============================================================
 # 🧠 Knowledge Base
@@ -129,8 +133,8 @@ def ask_gemini_context(user_message):
         )
 
     prompt = f"{SYSTEM_PROMPT}\n{history_text}\nContext: {json.dumps(context)}\nUser: {user_message}\nBot:"
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
+    response = model.generate_content(
+        model="gemini-1.5-flash",
         contents=[prompt]
     )
 
