@@ -10,7 +10,8 @@ import os, json
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.neighbors import NearestNeighbors
 from collections import deque
-
+from dotenv import load_dotenv
+load_dotenv()
 # ============================================================
 # ⚙ FastAPI App
 # ============================================================
@@ -28,8 +29,9 @@ app.add_middleware(
 # ============================================================
 # 🔑 Setup Gemini
 # ============================================================
-os.environ["GOOGLE_API_KEY"] = "AIzaSyBTRmvPDkemfIdhtHx6gbHEqO_NAvWwL80"
-api_key = os.environ["GOOGLE_API_KEY"]
+api_key = os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    raise RuntimeError("GOOGLE_API_KEY not set")
 client = genai.Client(api_key=api_key)
 
 # ============================================================
